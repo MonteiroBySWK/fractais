@@ -2,51 +2,70 @@ use wasm_bindgen::prelude::*;
 use js_sys::Uint8Array;
 use num_complex::Complex;
 
-const DIM: usize = 500;
-const COLOUR_C: f64 = 1024.0;
-const ITERACOES_K: u32 = 50;
-const K: f64 = 1.0;
-const ZETA: f64 = 0.3;
+const ITERACOES_K: u32 = 100;
+const CANVAS_WIDTH: usize = 500;
+const CANVAS_HEIGHT: usize = 500;
 
 #[wasm_bindgen]
-pub fn funcao(zoom: f64, dx: f64, dy: f64) -> Uint8Array {
-    let mut m = vec![0u8; DIM * DIM];
-    let min_x = (-2.0 * zoom) - dx;
-    let max_x = (2.0 * zoom) - dx;
-    let min_y = (-2.0 * zoom) - dy;
-    let max_y = (2.0 * zoom) - dy;
+pub struct FractalRenderer {
+    dx: f64,
+    dy: f64,
+    zoom: f64,
+}
 
-    let eixo_x: Vec<f64> = (0..DIM).map(|i| min_x + i as f64 * (max_x - min_x) / (DIM - 1) as f64).collect();
-    let eixo_y: Vec<f64> = (0..DIM).map(|i| min_y + i as f64 * (max_y - min_y) / (DIM - 1) as f64).collect();
-
-    for (u, &x) in eixo_x.iter().enumerate() {
-        for (v, &y) in eixo_y.iter().enumerate() {
-            let mut z = Complex::new(0.0, 0.0);
-            let c = Complex::new(x, y);
-            let mut n = 0;
-
-            let r = if c.norm() <= (2.0 / ZETA).powf(1.0 / K) {
-                (2.0 / ZETA).powf(1.0 / K)
-            } else {
-                c.norm()
-            };
-
-            while n < ITERACOES_K && z.norm() < r {
-                let vn = (1.0 - ZETA) * z + ZETA * mandelbrot(z, c);
-                let yn = mandelbrot(vn, c);
-                z = mandelbrot(yn, c);
-                n += 1;
-            }
-
-            let cor = (COLOUR_C * n as f64 / ITERACOES_K as f64) as u8;
-            m[v * DIM + u] = cor;
+#[wasm_bindgen]
+impl FractalRenderer {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            dx: 0.0,
+            dy: 0.0,
+            zoom: 1.0,
         }
     }
 
-    Uint8Array::from(&m[..])
+    /// Atualiza os deslocamentos e o zoom
+    pub fn update(&mut self, dx_delta: f64, dy_delta: f64, zoom_delta: f64) {
+        self.dx += dx_delta;
+        self.dy += dy_delta;
+        self.zoom *= zoom_delta;
+    }
+
+    /// Renderiza o fractal e retorna os dados como um Uint8Array
+    pub fn render(&self) -> Uint8Array {
+        let mut data = vec![0u8; CANVAS_WIDTH * CANVAS_HEIGHT * 4];
+
+        for y in 0..CANVAS_HEIGHT {
+            for x in 0..CANVAS_WIDTH {
+                let fx = (x as f64 - CANVAS_WIDTH as f64 / 2.0) / (CANVAS_WIDTH as f64 / self.zoom) + self.dx;
+                let fy = (y as f64 - CANVAS_HEIGHT as f64 / 2.0) / (CANVAS_HEIGHT as f64 / self.zoom) + self.dy;
+
+                let c = Complex::new(fx, fy);
+                let color = self.calculate_color(c);
+
+                let index = (y * CANVAS_WIDTH + x) * 4;
+                data[index] = color;       // Red
+                data[index + 1] = color;   // Green
+                data[index + 2] = color;   // Blue
+                data[index + 3] = 255;     // Alpha
+            }
+        }
+
+        Uint8Array::from(data.as_slice())
+    }
 }
 
-fn mandelbrot(z: Complex<f64>, c: Complex<f64>) -> Complex<f64> {
-    z.powf(K + 1.0) + c
+impl FractalRenderer {
+    fn calculate_color(&self, c: Complex<f64>) -> u8 {
+        let mut z = Complex::new(0.0, 0.0);
+        let mut n = 0;
+
+        while n < ITERACOES_K && z.norm() < 4.0 {
+            z = z * z + c;
+            n += 1;
+        }
+
+        ((n as f64 / ITERACOES_K as f64) * 255.0) as u8
+    }
 }
 

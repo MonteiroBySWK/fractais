@@ -1,53 +1,69 @@
-import init, { funcao } from "./pkg/fractais.js";
+import init, { FractalRenderer } from "./pkg/fractais.js";
 
-let zoom = 1.0;
-let dx = 0.0;
-let dy = 0.0;
-const vel = 0.1;
-
-async function run() {
+async function main() {
   await init();
+
+  const renderer = new FractalRenderer();
+
   const canvas = document.getElementById("fractal");
   const ctx = canvas.getContext("2d");
-  const imageData = ctx.createImageData(500, 500);
+  canvas.width = 500;
+  canvas.height = 500;
 
+  const keysPressed = {};
+  let lastTime = performance.now();
+
+  // Função para renderizar o fractal
   function renderFractal() {
-    const pixels = funcao(zoom, dx, dy);
-    for (let i = 0; i < pixels.length; i++) {
-      const value = pixels[i];
-      imageData.data[i * 4] = value; // Red
-      imageData.data[i * 4 + 1] = value; // Green
-      imageData.data[i * 4 + 2] = value; // Blue
-      imageData.data[i * 4 + 3] = 255; // Alpha
-    }
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+
+    // Obtém os dados renderizados do Rust
+    const pixels = renderer.render();
+
+    // Atualiza o canvas
+    imageData.data.set(pixels);
     ctx.putImageData(imageData, 0, 0);
   }
 
-  function handleKeyDown(event) {
-    switch (event.key) {
-      case "w": // Move para cima
-        dy -= vel;
-        break;
-      case "s": // Move para baixo
-        dy += vel;
-        break;
-      case "a": // Move para esquerda
-        dx -= vel;
-        break;
-      case "d": // Move para direita
-        dx += vel;
-        break;
-      case "ArrowUp": // Zoom in
-        zoom *= 1.1;
-        break;
-      case "ArrowDown": // Zoom out
-        zoom /= 1.1;
-        break;
-    }
+  // Função para atualizar o estado e renderizar continuamente
+  function updateAndRender(currentTime) {
+    const deltaTime = (currentTime - lastTime) / 1000; // Tempo decorrido em segundos
+    lastTime = currentTime;
+
+    let dx = 0,
+      dy = 0,
+      zoom = 1.0;
+
+    // Ajusta dx, dy e zoom com base nas teclas pressionadas
+    if (keysPressed["w"]) dy -= 0.5 * deltaTime;
+    if (keysPressed["s"]) dy += 0.5 * deltaTime;
+    if (keysPressed["a"]) dx -= 0.5 * deltaTime;
+    if (keysPressed["d"]) dx += 0.5 * deltaTime;
+    if (keysPressed["ArrowUp"]) zoom *= 1 + 0.5 * deltaTime;
+    if (keysPressed["ArrowDown"]) zoom /= 1 + 0.5 * deltaTime;
+
+    // Atualiza o estado no Rust
+    renderer.update(dx, dy, zoom);
+
+    // Renderiza o fractal
     renderFractal();
+
+    // Continua o loop
+    requestAnimationFrame(updateAndRender);
   }
-  window.addEventListener("keydown", handleKeyDown);
-  renderFractal();
+
+  // Lida com teclas pressionadas
+  window.addEventListener("keydown", (event) => {
+    keysPressed[event.key] = true;
+  });
+
+  // Lida com teclas liberadas
+  window.addEventListener("keyup", (event) => {
+    keysPressed[event.key] = false;
+  });
+
+  // Inicia o loop contínuo
+  requestAnimationFrame(updateAndRender);
 }
 
-run();
+main();
