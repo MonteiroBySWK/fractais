@@ -11,6 +11,7 @@ async function main() {
   canvas.height = 500;
 
   const keysPressed = {};
+  const vel_base = 0.5; // Velocidade base
   let lastTime = performance.now();
 
   function renderFractal() {
@@ -21,21 +22,27 @@ async function main() {
   }
 
   function updateAndRender(currentTime) {
-    const deltaTime = (currentTime - lastTime) / 1000;
+    const deltaTime = (currentTime - lastTime) / 1000; // Tempo em segundos
     lastTime = currentTime;
+
+    const zoom = renderer.get_zoom();
+    const speed = vel_base / zoom; // Velocidade ajustada pelo zoom
 
     let dx = 0,
       dy = 0,
-      zoom = 1.0;
+      zoom_factor = 1.0;
 
-    if (keysPressed["w"]) dy -= 0.5 * deltaTime;
-    if (keysPressed["s"]) dy += 0.5 * deltaTime;
-    if (keysPressed["a"]) dx -= 0.5 * deltaTime;
-    if (keysPressed["d"]) dx += 0.5 * deltaTime;
-    if (keysPressed["ArrowUp"]) zoom *= 1 + 0.5 * deltaTime;
-    if (keysPressed["ArrowDown"]) zoom /= 1 + 0.5 * deltaTime;
+    // Ajusta os deslocamentos com base nas teclas pressionadas
+    if (keysPressed["w"]) dy -= speed * deltaTime;
+    if (keysPressed["s"]) dy += speed * deltaTime;
+    if (keysPressed["a"]) dx -= speed * deltaTime;
+    if (keysPressed["d"]) dx += speed * deltaTime;
 
-    renderer.update(dx, dy, zoom);
+    // Ajusta o zoom
+    if (keysPressed["ArrowUp"]) zoom_factor *= 1 + 0.5 * deltaTime;
+    if (keysPressed["ArrowDown"]) zoom_factor /= 1 + 0.5 * deltaTime;
+
+    renderer.update(dx, dy, zoom_factor);
     renderFractal();
     requestAnimationFrame(updateAndRender);
   }
@@ -43,13 +50,12 @@ async function main() {
   window.addEventListener("keydown", (event) => {
     keysPressed[event.key] = true;
 
-    // Ajuste de iterações com setas esquerda e direita
     if (event.key === "ArrowLeft") {
-      renderer.adjust_iterations(-1); // Reduz 1 iteração
+      renderer.adjust_iterations(-1);
       renderFractal();
     }
     if (event.key === "ArrowRight") {
-      renderer.adjust_iterations(1); // Aumenta 1 iteração
+      renderer.adjust_iterations(1);
       renderFractal();
     }
   });

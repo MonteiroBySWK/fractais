@@ -72,5 +72,9 @@ impl FractalRenderer {
 
         ((n as f64 / self.iteracoes_k as f64) * 255.0) as u8
     }
+    
+    pub fn get_zoom(&self) -> f64 {
+        self.zoom
+    }
 }
 
