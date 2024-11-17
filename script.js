@@ -26,7 +26,7 @@ async function main() {
     lastTime = currentTime;
 
     const zoom = renderer.get_zoom();
-    const speed = vel_base / zoom; // Velocidade ajustada pelo zoom
+    const speed = vel_base * zoom; // Velocidade ajustada pelo zoom
 
     let dx = 0,
       dy = 0,
